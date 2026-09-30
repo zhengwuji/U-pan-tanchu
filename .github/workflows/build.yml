@@ -54,8 +54,9 @@ jobs:
       - name: 打包
         shell: pwsh
         run: |
-          Copy-Item ForceEjectUSB.exe 强制弹出优盘.exe
-          Compress-Archive -Path 强制弹出优盘.exe -DestinationPath "强制弹出优盘-v${{ env.version }}.${{ github.run_number }}.zip" -Force
+          # Release 附件用 ASCII 文件名 (GitHub 上传接口对非 ASCII 名会乱码)
+          Copy-Item ForceEjectUSB.exe "ForceEjectUSB-v${{ env.version }}.${{ github.run_number }}.exe"
+          Compress-Archive -Path ForceEjectUSB.exe -DestinationPath "ForceEjectUSB-v${{ env.version }}.${{ github.run_number }}.zip" -Force
           Get-ChildItem -File | Select-Object Name,Length
 
       - name: 发布到 Releases
@@ -65,5 +66,5 @@ jobs:
           name: 强制弹出优盘 v${{ env.version }}.${{ github.run_number }}
           body_path: RELEASE_NOTES.md
           files: |
-            强制弹出优盘.exe
-            强制弹出优盘-v${{ env.version }}.${{ github.run_number }}.zip
+            ForceEjectUSB-v${{ env.version }}.${{ github.run_number }}.exe
+            ForceEjectUSB-v${{ env.version }}.${{ github.run_number }}.zip
