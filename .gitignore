@@ -1,0 +1,12 @@
+# 构建产物
+force_res.o
+*.exe
+*.zip
+
+# 运行日志
+*.log
+
+# IDE / 系统
+.vs/
+.vscode/
+Thumbs.db

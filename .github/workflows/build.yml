@@ -1,0 +1,69 @@
+name: 自动编译发布
+
+on:
+  push:
+    branches: ['**']
+    paths-ignore:
+      - 'README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 MinGW 工具链 (MSYS2)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          release: false
+          install: mingw-w64-x86_64-gcc
+
+      - name: 读取版本号
+        id: ver
+        shell: pwsh
+        run: |
+          $rc = Get-Content force.rc -Raw
+          if ($rc -match 'FILEVERSION\s+(\d+),(\d+),(\d+),(\d+)') {
+            $v = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
+          } else {
+            $v = '1.0'
+          }
+          "version=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "版本: v$v"
+
+      - name: 编译
+        shell: pwsh
+        run: |
+          $g = 'C:\msys64\mingw64\bin'
+          & "$g\windres.exe" force.rc -O coff -o force_res.o
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          & "$g\g++.exe" -O2 -std=c++17 -municode -mwindows -static `
+            -finput-charset=UTF-8 -fwide-exec-charset=UTF-16LE `
+            main.cpp force_res.o -o ForceEjectUSB.exe `
+            -luser32 -lshell32 -lsetupapi -lcfgmgr32
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Get-Item ForceEjectUSB.exe | Format-List Name,Length,LastWriteTime
+
+      - name: 打包
+        shell: pwsh
+        run: |
+          Copy-Item ForceEjectUSB.exe 强制弹出优盘.exe
+          Compress-Archive -Path 强制弹出优盘.exe -DestinationPath "强制弹出优盘-v${{ env.version }}.${{ github.run_number }}.zip" -Force
+          Get-ChildItem -File | Select-Object Name,Length
+
+      - name: 发布到 Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.version }}.${{ github.run_number }}
+          name: 强制弹出优盘 v${{ env.version }}.${{ github.run_number }}
+          body_path: RELEASE_NOTES.md
+          files: |
+            强制弹出优盘.exe
+            强制弹出优盘-v${{ env.version }}.${{ github.run_number }}.zip
